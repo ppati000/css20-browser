@@ -2,6 +2,14 @@ import "bootstrap";
 import "@fortawesome/fontawesome-free/css/all.css";
 import "bootstrap/dist/css/bootstrap.css";
 import "./styles.scss";
+import "regenerator-runtime/runtime";
+import { reduceFrequencies, getFrequencyBounds } from "./audioProcessing";
+
+"./audioProcessing";
+
+// Hackity hack to get jQuery to work.
+var jquery = require("jquery");
+window.$ = window.jQuery = jquery;
 
 import MobileDetect from "mobile-detect";
 // import influent  funktioniert nicht, mit parcel weil es denkt, dass es unter node läuft
@@ -9,46 +17,72 @@ import MobileDetect from "mobile-detect";
 import influent from "influent/dist/influent.js";
 
 // Wir speichern erstmal alle Events um sie dann asynchron zu schreiben
-var evts = [];
-var recording = null; //nur wenn wir aufnehmen
-
-//https://developer.mozilla.org/en-US/docs/Web/API/DeviceOrientationEvent
-window.addEventListener("deviceorientation", function f(x) {
-  if (recording != null) evts.push(x);
-});
-
-//https://developer.mozilla.org/en-US/docs/Web/API/DeviceOMotionEvent
-window.addEventListener("devicemotion", function f(x) {
-  if (recording != null) evts.push(x);
-});
+let evts = [];
+let recording = null; //nur wenn wir aufnehmen
 
 //  Ne statistik is nie schlecht
-var data_count = 0;
+let data_count = 0;
 
 // definiere mal wie oft ich pro Sekunde hochladen will....
-var UPLOAD_RATE = 0.5;
+const uploadsPerSecond = 0.1;
 
 // Dummyfunktion falls jemand recorded bevor es los geht
-var write = function() {
+var write = function () {
   document.getElementById("debug").innerHTML = "Error Not connected.";
   document.getElementById("record").checked = false;
 };
 
-// Wir schalten einen Timer an/aus mit der checkbox
-document.getElementById("record").onchange = function() {
-  if (this.checked) {
-    recording = window.setInterval(write, 1000 / UPLOAD_RATE);
-    document.getElementById("debug").innerHTML = "Recording.";
-  } else {
-    window.clearInterval(recording);
-    recording = null; //Schaltet auch die Speicherung ab
-    document.getElementById("debug").innerHTML = "Not recording.";
-    data_count = 0;
-    evts = [];
-  }
-};
+jQuery(() => {
+  // Wir schalten einen Timer an/aus mit der checkbox
+  document.getElementById("record").onchange = function () {
+    if (this.checked) {
+      recording = window.setInterval(write, 1000 / uploadsPerSecond);
+      record();
+      document.getElementById("debug").innerHTML = "Recording.";
+    } else {
+      window.clearInterval(recording);
+      recording = null; //Schaltet auch die Speicherung ab
+      document.getElementById("debug").innerHTML = "Not recording.";
+      data_count = 0;
+      evts = [];
+    }
+  };
+});
 
-var md = new MobileDetect(window.navigator.userAgent);
+async function record() {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+  window.AudioContext = window.AudioContext || window.webkitAudioContext;
+  const audioContext = new AudioContext();
+  const analyzer = audioContext.createAnalyser();
+
+  const source = audioContext.createMediaStreamSource(stream);
+  source.connect(analyzer);
+
+  analyzer.smoothingTimeConstant = 0; // Use raw data, no averaging.
+  analyzer.fftSize = 2048; // FFT windows size (number of samples).
+  var bufferLength = analyzer.frequencyBinCount; // frequencyBinCount is automatically set to half the FFT window size.
+
+  const data = new Uint8Array(bufferLength);
+  await sleep(1000);
+
+  while (recording) {
+    analyzer.getByteFrequencyData(data);
+
+    const highestFrequency = audioContext.sampleRate / 2;
+    const reduced = reduceFrequencies(data, highestFrequency);
+
+    evts.push({
+      timestamp: Date.now() * 1000000, // InfluxDb assumes nanosecond timestamps. Learned this the hard way.
+      data: reduced
+    });
+
+    await sleep(1000);
+  }
+}
+
+async function sleep(ms) {
+  return new Promise(r => setTimeout(r, ms));
+}
 
 //wir öffnen eine Verbindung zu unserem Server (https://github.com/gobwas/influent)
 influent
@@ -65,47 +99,26 @@ influent
 
     database: "browser"
   })
-  .then(function(client) {
-    write = function() {
+  .then(function (client) {
+    write = function () {
       if (evts.length > 0) {
-        let subject = document.getElementById("subject").value;
         let label = document.getElementById("label").value;
 
         var batch = new influent.Batch({ database: "browser" }); // da kommen alle zum versenden rein
 
-        for (var i in evts) {
-          var event = evts[i];
-          var measurement = new influent.Measurement(event.type);
-          measurement.setTimestamp(
-            (
-              performance.timing.navigationStart * 1000000 +
-              parseInt(event.timeStamp * 1000000, 10)
-            ).toString()
-          );
-          //das ist wichtige Groundtruth später
+        console.log(evts);
+
+        for (let event of evts) {
+          var measurement = new influent.Measurement("audio-patrick");
+          measurement.setTimestamp(event.timestamp.toString());
+
           measurement.addTag("label", label);
-          measurement.addTag("subject", subject);
-          measurement.addTag("mobile", "" + md.mobile());
           measurement.addTag("useragent", window.navigator.userAgent);
-          //jetzt kommen die Daten
-          if (event instanceof DeviceOrientationEvent) {
-            for (var k1 in { alpha: 0, beta: 1, gamma: 2 })
-              if (!isNaN(parseFloat(event[k1])))
-                //sind manchmal leider leer
-                measurement.addField(k1, new influent.F64(event[k1]));
-          } else if (event instanceof DeviceMotionEvent) {
-            for (var k2 in {
-              acceleration: 0,
-              accelerationIncludingGravity: 1,
-              rotationRate: 2
-            }) {
-              for (var skey in event[k2])
-                if (!isNaN(parseFloat(event[k2][skey])))
-                  measurement.addField(
-                    k2 + "." + skey,
-                    new influent.F64(event[k2][skey])
-                  );
-            }
+
+          // Add main data.
+          for (let i = 0; i < event.data.length; i++) {
+            const frequencyBound = getFrequencyBounds()[i];
+            measurement.addField(`frequency_${frequencyBound}`, new influent.I64(event.data[i]));
           }
 
           if (Object.keys(measurement.fields).length > 0) {
@@ -117,15 +130,10 @@ influent
 
         evts = []; //können wir jetzt löschen. Das tolle ist, dass jacascript singlethreaded ist!
 
-        client.write(batch).then(function() {
+        client.write(batch).then(function () {
           document.getElementById("debug").innerHTML =
             "Recorded... (" + data_count + ")"; //einfach nur um zu sehen, dass was passiert
         });
       }
     };
   });
-
-//nur weil ich zu faul bin immer was einzutippen
-document.getElementById("subject").value = Math.floor(
-  (1 + Math.random()) * 0x10000
-).toString(16);
