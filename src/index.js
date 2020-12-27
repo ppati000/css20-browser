@@ -59,7 +59,7 @@ async function record() {
   source.connect(analyzer);
 
   analyzer.smoothingTimeConstant = 0; // Use raw data, no averaging.
-  analyzer.fftSize = 2048; // FFT windows size (number of samples).
+  analyzer.fftSize = 16384; // FFT windows size (number of samples).
   var bufferLength = analyzer.frequencyBinCount; // frequencyBinCount is automatically set to half the FFT window size.
 
   const data = new Uint8Array(bufferLength);
