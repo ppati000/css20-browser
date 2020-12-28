@@ -43,6 +43,11 @@ jQuery(() => {
       window.clearInterval(recording);
       recording = null; //Schaltet auch die Speicherung ab
       document.getElementById("debug").innerHTML = "Not recording.";
+
+      document.getElementById("subject").value = Math.floor(
+        (1 + Math.random()) * 0x10000
+      ).toString(16);
+
       data_count = 0;
       evts = [];
     }
