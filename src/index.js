@@ -47,6 +47,10 @@ jQuery(() => {
       evts = [];
     }
   };
+
+  document.getElementById("subject").value = Math.floor(
+    (1 + Math.random()) * 0x10000
+  ).toString(16);
 });
 
 async function record() {
@@ -59,11 +63,17 @@ async function record() {
   source.connect(analyzer);
 
   analyzer.smoothingTimeConstant = 0; // Use raw data, no averaging.
-  analyzer.fftSize = 16384; // FFT windows size (number of samples).
+  analyzer.fftSize = 2048; // FFT windows size (number of samples).
   var bufferLength = analyzer.frequencyBinCount; // frequencyBinCount is automatically set to half the FFT window size.
+  const sleepTime = (analyzer.fftSize / audioContext.sampleRate) * 1000;
+
+  console.log(`Some info:
+  Sample Rate: ${audioContext.sampleRate}
+  FFT Size: ${analyzer.fftSize}
+  New spectrum every ${sleepTime} ms.`);
 
   const data = new Uint8Array(bufferLength);
-  await sleep(1000);
+  await sleep(1000); // Wait an initial 1000ms to avoid browser quirks leading to no results.
 
   while (recording) {
     analyzer.getByteFrequencyData(data);
@@ -76,7 +86,7 @@ async function record() {
       data: reduced
     });
 
-    await sleep(1000);
+    await sleep(sleepTime); // TODO actually we could call this as often as fftSize / sampleRate.
   }
 }
 
@@ -109,10 +119,11 @@ influent
         console.log(evts);
 
         for (let event of evts) {
-          var measurement = new influent.Measurement("audio-patrick");
+          var measurement = new influent.Measurement("audio-patrick-2");
           measurement.setTimestamp(event.timestamp.toString());
 
           measurement.addTag("label", label);
+          measurement.addTag("subject", document.getElementById("subject").value);
           measurement.addTag("useragent", window.navigator.userAgent);
 
           // Add main data.
