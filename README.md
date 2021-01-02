@@ -1,6 +1,6 @@
 # Playlist-o-matic
 
-Playlist-o-matic is a simple React app which detects music genres and recommends you a playlist based on the detected genre.
+Playlist-o-matic is a context-sensitive React app which detects music genres and recommends a playlist based on the detected genre.
 The app uses a decision tree machine learning model.
 
 <p float="left">
