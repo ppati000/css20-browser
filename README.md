@@ -3,9 +3,11 @@
 Playlist-o-matic is a simple React app which detects music genres and recommends you a playlist based on the detected genre.
 The app uses a decision tree machine learning model.
 
+<p float="left">
 <img src="https://github.com/ppati000/playlist-o-matic/blob/master/IMG_3894.PNG?raw=true" alt="Playlist-o-matic application when no music is playing." height="400">
 <img src="https://github.com/ppati000/playlist-o-matic/blob/master/IMG_3895.PNG?raw=true" alt="Playlist-o-matic application when country music is playing." height="400">
 <img src="https://github.com/ppati000/playlist-o-matic/blob/master/IMG_3896.PNG?raw=true" alt="Playlist-o-matic application when reggaeton music is playing." height="400">
+</p>
 
 This is a proof-of-concept application. At the moment, only the two beautiful genres of Country and Reggaeton are supported. Additionally, the app is able to recognize silence.
 Please note that accuracy may vary based on your sound system.
