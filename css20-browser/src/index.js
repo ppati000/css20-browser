@@ -36,6 +36,10 @@ jQuery(() => {
   // Wir schalten einen Timer an/aus mit der checkbox
   document.getElementById("record").onchange = function () {
     if (this.checked) {
+      document.getElementById("subject").value = Math.floor(
+        (1 + Math.random()) * 0x10000
+      ).toString(16);
+
       recording = window.setInterval(write, 1000 / uploadsPerSecond);
       record();
       document.getElementById("debug").innerHTML = "Recording.";
@@ -43,10 +47,6 @@ jQuery(() => {
       window.clearInterval(recording);
       recording = null; //Schaltet auch die Speicherung ab
       document.getElementById("debug").innerHTML = "Not recording.";
-
-      document.getElementById("subject").value = Math.floor(
-        (1 + Math.random()) * 0x10000
-      ).toString(16);
 
       data_count = 0;
       evts = [];
@@ -80,6 +80,9 @@ async function record() {
   const data = new Uint8Array(bufferLength);
   await sleep(1000); // Wait an initial 1000ms to avoid browser quirks leading to no results.
 
+  document.getElementById("debug").innerHTML =
+    "Please wait... (" + data_count + ")";
+
   while (recording) {
     analyzer.getByteFrequencyData(data);
 
@@ -91,7 +94,7 @@ async function record() {
       data: reduced
     });
 
-    await sleep(sleepTime); // TODO actually we could call this as often as fftSize / sampleRate.
+    await sleep(sleepTime);
   }
 }
 
@@ -124,7 +127,7 @@ influent
         console.log(evts);
 
         for (let event of evts) {
-          var measurement = new influent.Measurement("audio-patrick-2");
+          var measurement = new influent.Measurement("audio-patrick-3");
           measurement.setTimestamp(event.timestamp.toString());
 
           measurement.addTag("label", label);
@@ -150,6 +153,9 @@ influent
           document.getElementById("debug").innerHTML =
             "Recorded... (" + data_count + ")"; //einfach nur um zu sehen, dass was passiert
         });
+
+        document.getElementById("record").checked = false;
+        document.getElementById("record").onchange();
       }
     };
   });
