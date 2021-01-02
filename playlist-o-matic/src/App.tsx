@@ -44,6 +44,10 @@ function App() {
 
       { detecting && <p>Listening...</p> }
 
+      { classification && classification.genre === "silence" && <p>I don't think you're listening to anything right now. Check your microphone maybe?</p>}
+
+      { classification && classification.confidence > 0 && playlist && <p>I'm {Math.round(classification.confidence * 100)}% sure you'll like this playlist.</p> }
+
       { classification && classification.genre && playlist &&
       <iframe src={playlist.link} width={300} height={600} frameBorder={0}
   allowTransparency={true} allow="encrypted-media"/>

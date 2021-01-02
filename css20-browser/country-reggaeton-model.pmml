@@ -2,80 +2,157 @@
 <PMML xmlns="http://www.dmg.org/PMML-4_3" xmlns:data="http://jpmml.org/jpmml-model/InlineTable" version="4.3">
 	<Header>
 		<Application name="JPMML-R" version="1.3.15"/>
-		<Timestamp>2020-12-28T21:28:55Z</Timestamp>
+		<Timestamp>2021-01-02T10:59:57Z</Timestamp>
 	</Header>
 	<DataDictionary>
 		<DataField name=".outcome" optype="categorical" dataType="string">
 			<Value value="country"/>
 			<Value value="reggaeton"/>
+			<Value value="silence"/>
 		</DataField>
-		<DataField name="var_f_80" optype="continuous" dataType="double"/>
-		<DataField name="mean_f_2400" optype="continuous" dataType="double"/>
+		<DataField name="mean_f_300" optype="continuous" dataType="double"/>
+		<DataField name="var_f_40" optype="continuous" dataType="double"/>
+		<DataField name="var_f_2400" optype="continuous" dataType="double"/>
 		<DataField name="mean_f_80" optype="continuous" dataType="double"/>
+		<DataField name="mean_f_600" optype="continuous" dataType="double"/>
+		<DataField name="var_f_600" optype="continuous" dataType="double"/>
 		<DataField name="mean_f_20" optype="continuous" dataType="double"/>
+		<DataField name="var_f_20" optype="continuous" dataType="double"/>
+		<DataField name="var_f_10000" optype="continuous" dataType="double"/>
+		<DataField name="var_f_160" optype="continuous" dataType="double"/>
+		<DataField name="mean_f_2400" optype="continuous" dataType="double"/>
 	</DataDictionary>
 	<TreeModel functionName="classification" splitCharacteristic="binarySplit">
 		<MiningSchema>
 			<MiningField name=".outcome" usageType="target"/>
-			<MiningField name="var_f_80"/>
-			<MiningField name="mean_f_2400"/>
+			<MiningField name="mean_f_300"/>
+			<MiningField name="var_f_40"/>
+			<MiningField name="var_f_2400"/>
 			<MiningField name="mean_f_80"/>
+			<MiningField name="mean_f_600"/>
+			<MiningField name="var_f_600"/>
 			<MiningField name="mean_f_20"/>
+			<MiningField name="var_f_20"/>
+			<MiningField name="var_f_10000"/>
+			<MiningField name="var_f_160"/>
+			<MiningField name="mean_f_2400"/>
 		</MiningSchema>
 		<Output>
 			<OutputField name="probability(country)" optype="continuous" dataType="double" feature="probability" value="country"/>
 			<OutputField name="probability(reggaeton)" optype="continuous" dataType="double" feature="probability" value="reggaeton"/>
+			<OutputField name="probability(silence)" optype="continuous" dataType="double" feature="probability" value="silence"/>
 			<OutputField name="nodeId" optype="categorical" dataType="string" feature="entityId"/>
 		</Output>
 		<Node id="1">
 			<True/>
-			<Node id="2">
-				<SimplePredicate field="var_f_80" operator="lessOrEqual" value="8570.267857142857"/>
-				<Node id="3" score="reggaeton">
-					<SimplePredicate field="mean_f_2400" operator="lessOrEqual" value="5828.173913043478"/>
-					<ScoreDistribution value="country" recordCount="0.29411764705882354"/>
-					<ScoreDistribution value="reggaeton" recordCount="0.7058823529411765"/>
-				</Node>
+			<Node id="2" score="silence">
+				<SimplePredicate field="mean_f_300" operator="lessOrEqual" value="1122.1764705882354"/>
+				<ScoreDistribution value="country" recordCount="0.0"/>
+				<ScoreDistribution value="reggaeton" recordCount="0.0"/>
+				<ScoreDistribution value="silence" recordCount="1.0"/>
+			</Node>
+			<Node id="3">
+				<SimplePredicate field="mean_f_300" operator="greaterThan" value="1122.1764705882354"/>
 				<Node id="4">
-					<SimplePredicate field="mean_f_2400" operator="greaterThan" value="5828.173913043478"/>
-					<Node id="5" score="reggaeton">
-						<SimplePredicate field="mean_f_80" operator="lessOrEqual" value="506.0"/>
-						<ScoreDistribution value="country" recordCount="0.3333333333333333"/>
-						<ScoreDistribution value="reggaeton" recordCount="0.6666666666666666"/>
-					</Node>
-					<Node id="6">
-						<SimplePredicate field="mean_f_80" operator="greaterThan" value="506.0"/>
+					<SimplePredicate field="var_f_40" operator="lessOrEqual" value="3950.279411764706"/>
+					<Node id="5">
+						<SimplePredicate field="var_f_2400" operator="lessOrEqual" value="2322820.2"/>
+						<Node id="6" score="country">
+							<SimplePredicate field="mean_f_80" operator="lessOrEqual" value="307.47058823529414"/>
+							<ScoreDistribution value="country" recordCount="0.7142857142857143"/>
+							<ScoreDistribution value="reggaeton" recordCount="0.2857142857142857"/>
+							<ScoreDistribution value="silence" recordCount="0.0"/>
+						</Node>
 						<Node id="7" score="country">
-							<SimplePredicate field="mean_f_80" operator="lessOrEqual" value="595.7391304347826"/>
+							<SimplePredicate field="mean_f_80" operator="greaterThan" value="307.47058823529414"/>
 							<ScoreDistribution value="country" recordCount="1.0"/>
 							<ScoreDistribution value="reggaeton" recordCount="0.0"/>
+							<ScoreDistribution value="silence" recordCount="0.0"/>
 						</Node>
-						<Node id="8" score="country">
-							<SimplePredicate field="mean_f_80" operator="greaterThan" value="595.7391304347826"/>
-							<ScoreDistribution value="country" recordCount="0.8571428571428571"/>
-							<ScoreDistribution value="reggaeton" recordCount="0.14285714285714285"/>
+					</Node>
+					<Node id="8">
+						<SimplePredicate field="var_f_2400" operator="greaterThan" value="2322820.2"/>
+						<Node id="9" score="country">
+							<SimplePredicate field="mean_f_600" operator="lessOrEqual" value="2993.4117647058824"/>
+							<ScoreDistribution value="country" recordCount="0.9230769230769231"/>
+							<ScoreDistribution value="reggaeton" recordCount="0.07692307692307693"/>
+							<ScoreDistribution value="silence" recordCount="0.0"/>
+						</Node>
+						<Node id="10">
+							<SimplePredicate field="mean_f_600" operator="greaterThan" value="2993.4117647058824"/>
+							<Node id="11" score="country">
+								<SimplePredicate field="var_f_600" operator="lessOrEqual" value="77488.93333333333"/>
+								<ScoreDistribution value="country" recordCount="0.875"/>
+								<ScoreDistribution value="reggaeton" recordCount="0.125"/>
+								<ScoreDistribution value="silence" recordCount="0.0"/>
+							</Node>
+							<Node id="12" score="reggaeton">
+								<SimplePredicate field="var_f_600" operator="greaterThan" value="77488.93333333333"/>
+								<ScoreDistribution value="country" recordCount="0.2222222222222222"/>
+								<ScoreDistribution value="reggaeton" recordCount="0.7777777777777778"/>
+								<ScoreDistribution value="silence" recordCount="0.0"/>
+							</Node>
 						</Node>
 					</Node>
 				</Node>
-			</Node>
-			<Node id="9">
-				<SimplePredicate field="var_f_80" operator="greaterThan" value="8570.267857142857"/>
-				<Node id="10" score="reggaeton">
-					<SimplePredicate field="mean_f_20" operator="lessOrEqual" value="58.43478260869565"/>
-					<ScoreDistribution value="country" recordCount="0.2857142857142857"/>
-					<ScoreDistribution value="reggaeton" recordCount="0.7142857142857143"/>
-				</Node>
-				<Node id="11">
-					<SimplePredicate field="mean_f_20" operator="greaterThan" value="58.43478260869565"/>
-					<Node id="12" score="reggaeton">
-						<SimplePredicate field="mean_f_2400" operator="lessOrEqual" value="7329.652173913043"/>
+				<Node id="13">
+					<SimplePredicate field="var_f_40" operator="greaterThan" value="3950.279411764706"/>
+					<Node id="14">
+						<SimplePredicate field="mean_f_20" operator="lessOrEqual" value="50.529411764705884"/>
+						<Node id="15">
+							<SimplePredicate field="var_f_20" operator="lessOrEqual" value="1733.2426470588234"/>
+							<Node id="16">
+								<SimplePredicate field="var_f_10000" operator="lessOrEqual" value="1644733.5111111111"/>
+								<Node id="17" score="country">
+									<SimplePredicate field="var_f_160" operator="lessOrEqual" value="22280.308823529413"/>
+									<ScoreDistribution value="country" recordCount="0.9444444444444444"/>
+									<ScoreDistribution value="reggaeton" recordCount="0.05555555555555555"/>
+									<ScoreDistribution value="silence" recordCount="0.0"/>
+								</Node>
+								<Node id="18" score="reggaeton">
+									<SimplePredicate field="var_f_160" operator="greaterThan" value="22280.308823529413"/>
+									<ScoreDistribution value="country" recordCount="0.42857142857142855"/>
+									<ScoreDistribution value="reggaeton" recordCount="0.5714285714285714"/>
+									<ScoreDistribution value="silence" recordCount="0.0"/>
+								</Node>
+							</Node>
+							<Node id="19">
+								<SimplePredicate field="var_f_10000" operator="greaterThan" value="1644733.5111111111"/>
+								<Node id="20" score="reggaeton">
+									<SimplePredicate field="mean_f_2400" operator="lessOrEqual" value="7292.5"/>
+									<ScoreDistribution value="country" recordCount="0.0"/>
+									<ScoreDistribution value="reggaeton" recordCount="1.0"/>
+									<ScoreDistribution value="silence" recordCount="0.0"/>
+								</Node>
+								<Node id="21" score="country">
+									<SimplePredicate field="mean_f_2400" operator="greaterThan" value="7292.5"/>
+									<ScoreDistribution value="country" recordCount="0.625"/>
+									<ScoreDistribution value="reggaeton" recordCount="0.375"/>
+									<ScoreDistribution value="silence" recordCount="0.0"/>
+								</Node>
+							</Node>
+						</Node>
+						<Node id="22">
+							<SimplePredicate field="var_f_20" operator="greaterThan" value="1733.2426470588234"/>
+							<Node id="23" score="reggaeton">
+								<SimplePredicate field="var_f_600" operator="lessOrEqual" value="169830.2794117647"/>
+								<ScoreDistribution value="country" recordCount="0.2857142857142857"/>
+								<ScoreDistribution value="reggaeton" recordCount="0.7142857142857143"/>
+								<ScoreDistribution value="silence" recordCount="0.0"/>
+							</Node>
+							<Node id="24" score="reggaeton">
+								<SimplePredicate field="var_f_600" operator="greaterThan" value="169830.2794117647"/>
+								<ScoreDistribution value="country" recordCount="0.0"/>
+								<ScoreDistribution value="reggaeton" recordCount="1.0"/>
+								<ScoreDistribution value="silence" recordCount="0.0"/>
+							</Node>
+						</Node>
+					</Node>
+					<Node id="25" score="reggaeton">
+						<SimplePredicate field="mean_f_20" operator="greaterThan" value="50.529411764705884"/>
 						<ScoreDistribution value="country" recordCount="0.0"/>
 						<ScoreDistribution value="reggaeton" recordCount="1.0"/>
-					</Node>
-					<Node id="13" score="reggaeton">
-						<SimplePredicate field="mean_f_2400" operator="greaterThan" value="7329.652173913043"/>
-						<ScoreDistribution value="country" recordCount="0.14285714285714285"/>
-						<ScoreDistribution value="reggaeton" recordCount="0.8571428571428571"/>
+						<ScoreDistribution value="silence" recordCount="0.0"/>
 					</Node>
 				</Node>
 			</Node>

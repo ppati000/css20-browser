@@ -105,7 +105,7 @@ Als erstes muss man sich mit der InfluxDB verbinden. Komischerweise tut hier htt
 con <- influx_connection(host = "css20.dmz.teco.edu", scheme="http", port=80) 
 
 # Testing wird hier schon rausgefiltert.
-result=influx_query_xts(con,db="browser", "select * FROM \"audio-patrick-2\" where label != 'testing' GROUP BY label, subject")
+result=influx_query_xts(con,db="browser", "select * FROM \"audio-patrick-3\" where label != 'testing' GROUP BY label, subject")
 
 ```
 
@@ -118,7 +118,7 @@ data <- as.data.frame(
   foreach(i=seq(1,length(result)),.combine = rbind) %do% # For i = 1,...,length(result)
   {
     # Very magic method which windows by intervals of k milliseconds!
-    foreach(s=split(result[i][[1]]$values,"millisecond",k=1000),.combine = rbind) %do%
+    foreach(s=split(result[i][[1]]$values,"millisecond",k=2000),.combine = rbind) %do%
     {
       r={}
       r$subject=result[i][[1]]$tags$subject # aus der Gruppierung
@@ -228,10 +228,10 @@ Resubsitution zeigt wie gut ein Modell die Daten abbilden kann
 
 ```{r}
 options(warn=-1)
-traindata=data_prep
+traindata=data
 testdata=traindata
 
-model=train(traindata[,-c(1,2)], traindata[,"label"], method = "knn")
+model=train(traindata[,-c(1,2)], traindata[,"label"], method = "ctree")
 prediction=predict(model,testdata[,-c(1,2)])
 confusionMatrix(prediction,as.factor(testdata$label))
 r2pmml(model, "country-reggaeton-model.pmml")
