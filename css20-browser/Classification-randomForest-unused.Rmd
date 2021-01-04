@@ -1,0 +1,262 @@
+---
+title: "Daten sammeln im Browser, Feature Extraktion aus Influxdb und Klassifikation in R"
+output:
+  html_document:
+    df_print: paged
+---
+Ihr könnt diese [Quelldatei](./Classification.Rmd) in RStudio laden
+
+Bei der Übung sollen es darum gehen in mehreren Schritten eine kontextsensitive App im Browser zu bauen.
+
+Dazu sind folgende Schritte notwendig. Man
+
+1. Installiert eine Zeitseriendatenbank wie [Influx-DB](https://hub.docker.com/_/influxdb/)
+1.  greift in Javascript die [DeviceMotion Events](https://www.html5rocks.com/en/tutorials/device/orientation/) des Browsers zu und schickt sie zum Beispiel mit [influent](https://github.com/gobwas/influent) and die Influx-DB zusammen mit Annotationen von Nutzern
+1. holt die Daten sammt Annotationen aus der Datenbank und trainert darauf einen Klassifikator (z.B. mittels R influxdbr und caret)
+1. exportiert den Klassifikator und nutz ihn in der Web App
+1. baut eine App die die erkannten Kontext wie "gehen" oder "stehen" nutzt  
+Um dies folgende Übung zu machen, solltet ihr bereits
+
+Eine InfluxDB aufgesetzt haben mit in der ihr Daten aufzeichen könnt. Die folgende docker-compose.yml macht das bei mir (traefik holt automatisch die SSL Zertifikate):
+
+```
+version: '3.3'
+
+services:
+   influxdb:
+     image: influxdb 
+     restart: always
+     labels:
+      - traefik.http.routers.influxdb.rule=Host(`css20.dmz.teco.edu`)
+
+   chronograf:
+     image: chronograf 
+     depends_on:
+       - influxdb 
+     restart: always
+     entrypoint: 'chronograf  --basepath /chronograf --influxdb-url=http://influxdb:8086'
+     labels:
+      - traefik.http.routers.chronograf.rule=Host(`css20.dmz.teco.edu`)&&PathPrefix(`/chronograf`)
+
+   traefik:
+     image: traefik
+     restart: always
+     ports:
+       - 80:80
+       - 443:443
+     volumes:
+       - /var/run/docker.sock:/var/run/docker.sock
+     command:
+       - --providers.docker=true
+       - --providers.docker.defaultrule=PathPrefix(`/{{normalize .Name}}`)
+       - --log.level=INFO
+       - --entrypoints.web.address=:80
+       - --entrypoints.websecure.address=:443
+       - --entrypoints.websecure.http.tls.domains=css20.dmz.teco.edu
+       - --certificatesresolvers.myresolver.acme.email=riedel@teco.edu
+       - --certificatesresolvers.myresolver.acme.storage=acme.json
+       - --certificatesresolvers.myresolver.acme.httpchallenge=true
+       - --certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web
+       - --entrypoints.websecure.http.tls.certresolver=myresolver
+
+```
+Den Server auf http://css20.dmz.teco.edu könnt ihr gerne nutzen und die Daten euch auf http://css20.dmz.teco.edu/chronograf/ anschauen.
+
+Eine App, die die Daten aufzeichnet habe ich hier online entworfen: https://codesandbox.io/s/sensoren-mit-dem-browser-in-influxdb-aufnehmen-4q61e?file=/src/index.js
+bzw. https://github.com/riedel/css20-browser
+
+
+Macht gerne eure eigene Experimente und nutzt auch andere Sensoren wie:
+* http://caniuse.com/ambient-light
+* https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Visualizations_with_Web_Audio_API, 
+* https://developer.mozilla.org/en-US/docs/Web/API/Touch_events
+
+Die Tabelle (Messung) heißt dabei immer wie der Sensor Event.
+
+Weiter geht es mit der Auswertung der Daten. Das folgende Beispiel lässt sich in RStudio nachvollziehen. Hierzu kann man den Docker aus der vorangegangenen Übung nehmen
+
+Der nächste Schritt kann beim ersten mal länger dauern... . Wenn es Fehler gibt, können können pakete mit z.B. ```docker exec rstudio_css apt-get install libxml2-dev``` nachinstalliert werden
+
+```{r}
+
+for(p in c("caret","devtools","xts", "dimRed", "foreach","tidyr","fastICA", "naivebayes", "r2pmml"))
+if (!require(p,character.only=TRUE)) {
+    install.packages(p, dependencies = TRUE)
+    require(p,character.only=TRUE)
+}
+
+if (!require("e1071", character.only=TRUE)) {
+  install.packages("e1071", dependencies = TRUE)
+  require("e1071",character.only=TRUE)
+}
+
+if (!require("influxdbr2",character.only=TRUE)) {
+devtools::install_github("mvadu/influxdbr2")
+  require("influxdbr2",character.only=TRUE)
+}
+```
+
+## Daten laden
+Als erstes muss man sich mit der InfluxDB verbinden. Komischerweise tut hier https nicht. Der Einfachheit halber kann man die Daten schon gruppieren. Auf eine weitere Aggregation verzichten wir, da wir die Fensterung in R machen wollen.
+
+
+```{r}
+
+con <- influx_connection(host = "css20.dmz.teco.edu", scheme="http", port=80) 
+
+# Testing wird hier schon rausgefiltert.
+result=influx_query_xts(con,db="browser", "select * FROM \"audio-patrick-3\" where label != 'testing' GROUP BY label, subject")
+
+```
+
+Die nächste verschachtelte Schleife macht die Fensterung (nicht überlappend)
+
+```{r}
+help("split.xts")
+
+data <- as.data.frame(
+  foreach(i=seq(1,length(result)),.combine = rbind) %do% # For i = 1,...,length(result)
+  {
+    # Very magic method which windows by intervals of k milliseconds!
+    foreach(s=split(result[i][[1]]$values,"millisecond",k=2000),.combine = rbind) %do%
+    {
+      r={}
+      r$subject=result[i][[1]]$tags$subject # aus der Gruppierung
+      r$label=result[i][[1]]$tags$label
+      
+
+      #eigentlich sollten die numerisch sein. Bug in der Library? Ja ich glaube schon. Kommt immer character raus.
+      f_20=as.numeric(s$frequency_20)
+      f_40=as.numeric(s$frequency_40)
+      f_80=as.numeric(s$frequency_80)
+      f_160=as.numeric(s$frequency_160)
+      f_300=as.numeric(s$frequency_300)
+      f_600=as.numeric(s$frequency_600)
+      f_2400=as.numeric(s$frequency_2400)
+      f_5000=as.numeric(s$frequency_5000)
+      f_10000=as.numeric(s$frequency_10000)
+      
+      #r$f_20 = paste(f_20, collapse = ',') # Nur nur um zu gucken ob das Sinn macht
+      r$mean_f_20=mean(f_20)
+      r$mean_f_40=mean(f_40)
+      r$mean_f_80=mean(f_80)
+      r$mean_f_160=mean(f_160)
+      r$mean_f_300=mean(f_300)
+      r$mean_f_600=mean(f_600)
+      r$mean_f_2400=mean(f_2400)
+      r$mean_f_5000=mean(f_5000)
+      r$mean_f_10000=mean(f_10000)
+      
+      r$var_f_20=var(f_20)
+      r$var_f_40=var(f_40)
+      r$var_f_80=var(f_80)
+      r$var_f_160=var(f_160)
+      r$var_f_300=var(f_300)
+      r$var_f_600=var(f_600)
+      r$var_f_2400=var(f_2400)
+      r$var_f_5000=var(f_5000)
+      r$var_f_10000=var(f_10000)
+
+      as.data.frame(r)
+    }
+  }
+  )
+
+
+```
+## Daten bereinigen
+```{r}
+dim(data)
+
+data<-drop_na(data)
+
+dim(data)
+
+#data<-data[data$minmax_3d<(mean(data$minmax_3d) + 2* sd(data$minmax_3d)),]
+
+#dim(data)
+
+```
+
+Mittels eines Histogramms kann man sich anschauen wie lang die verschiedenen Zeitreihen sind.  Eigentlich müsste man sich wahrscheinlich hinten und vorne etwas abschneiden.
+
+```{r}
+count=aggregate(data[,c(1,2,3)], by=list(data$label,data$subject), FUN=length)
+
+ggplot(count, aes(x = label,fill= Group.1)) + geom_histogram() + scale_x_log10()
+```
+
+##Merkmalsraum visualisieren
+
+Jetzt können wir uns die Merkmalsraum anschauen
+
+```{r}
+data$label=(factor(data$label))
+cols=c(9,18) #mean_f2400 and var_f2400
+featurePlot(x=data[,cols], y=data$label, plot="pairs", auto.key = list(columns = 2))
+```
+
+
+## Modelle trainieren
+
+Resubsitution zeigt wie gut ein Modell die Daten abbilden kann
+
+```{r}
+options(warn=-1)
+traindata=data
+testdata=traindata
+
+#tuneParams = expand.grid(.maxdepth = 2,.mincriterion = 0)
+
+model=train(traindata[,-c(1,2)], traindata[,"label"], method = "rf")
+prediction=predict(model,testdata[,-c(1,2)])
+confusionMatrix(prediction,as.factor(testdata$label))
+r2pmml(model, "country-reggaeton-model.pmml")
+
+```
+
+Stattdessen sollten man einen Holdout benutzen, aber dann hat man sehr wenige daten...
+```{r}
+set.seed(42) #wichtig dass der Holdout immer der gleiche bleibt...
+holdout <- createDataPartition(data_prep$label, p = .3, list = FALSE, times = 1) # 30% Holdout!
+
+traindata=data[-holdout,]
+testdata=data[holdout,]
+
+model=train(traindata[,-c(1,2)], traindata[,"label"], method = "rf")
+prediction=predict(model,testdata[,-c(1,2)])
+confusionMatrix(prediction,as.factor(testdata$label))
+r2pmml(model, "country-reggaeton-model-holdout.pmml")
+
+```
+
+Crossvalidation kann das Problem der wenigen Daten und der fehlenden Rerpäsentativität lösen. 
+
+```{r}
+
+model=train(traindata[,-c(1,2)], traindata[,"label"], method = "ctree2", tuneGrid=tuneParams, trControl =  trainControl(method="cv", summaryFunction = multiClassSummary))
+prediction=predict(model,traindata[,-c(1,2)])
+confusionMatrix(prediction,as.factor(traindata$label))
+r2pmml(model, "country-reggaeton-model-cv.pmml")
+
+```
+
+
+Allerdings sind die Stichproben wahrscheinlich nicht ganz unnabhängig! Am besten für unsere Zeitserien ist eine leave-one-subject out Validierung,da sie den Anwendungsfall am besten wiederspiegelt. Danach geht die Accurracy in den Keller! Ups...
+
+```{r}
+subjects <- levels(factor(data$subject))
+
+data_subject <- vector(mode = "list", length = length(subjects))
+#tuneParams2 =expand.grid(.mtry=2)
+
+
+for (s in seq(1,length(subjects)))  data_subject[[s]]<- which(data$subject!=subjects[s]) # Immer ein subject auslassen.
+
+train(data[,-c(1,2)], data[,"label"], method = "rf",trControl =  trainControl(index=data_subject, summaryFunction = multiClassSummary))
+
+#r2pmml(model, "country-reggaeton-model-random-forest.pmml")
+```
+
+
+Aufgabe ist die wieder nach oben zu bringen. Wir brauchen so 90% :)
