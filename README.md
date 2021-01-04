@@ -58,6 +58,10 @@ The collected and aggregated data is stored in an InfluxDB database.
 
 The data analysis is performed in R; see the `Classification.Rmd` file. A simple decision tree model is used, which is exported to PMML and then converted into JSON.
 
+Some experiments were conducted using random forests, too.
+These are in `Classification-randomForest-unused.Rmd`.
+As the filename suggests, the results have not been used in the application yet.
+
 The recorded frequency data is used to build features based on mean and variance of the different frequency bands.
 This means that the data is windowed a second time, this time using timestamps so that data representing one second of music is used.
 
